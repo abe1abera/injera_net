@@ -1,3 +1,22 @@
-from django.shortcuts import render
+from rest_framework import generics, viewsets, permissions
+from django.contrib.auth.models import User
+from .models import Product
+from .serializers import UserSerializer, RegisterSerializer, ProductSerializer
 
-# Create your views here.
+# Register new users
+class RegisterView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = RegisterSerializer
+    permission_classes = [permissions.AllowAny]
+
+# List all users (Admin only)
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+# CRUD for Products
+class ProductViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
