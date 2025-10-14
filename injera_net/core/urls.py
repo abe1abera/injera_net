@@ -1,12 +1,18 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import RegisterView, UserViewSet, ProductViewSet
+from .views import RegisterView, UserViewSet, ProductViewSet, OrderViewSet  # ADD OrderViewSet here
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+
+
+
+
+
 
 router = DefaultRouter()
 router.register('users', UserViewSet, basename='user')
 router.register('products', ProductViewSet, basename='product')
-router.register('orders', OrderViewSet, basename='order')
+
 
 urlpatterns = [
     path('auth/register/', RegisterView.as_view(), name='register'),
