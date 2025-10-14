@@ -1,11 +1,10 @@
 from rest_framework import generics, viewsets, permissions
-
 from django.contrib.auth import get_user_model
+
+from .models import Product, Order
+from .serializers import UserSerializer, RegisterSerializer, ProductSerializer, OrderSerializer
+
 User = get_user_model()
-
-
-from .models import Product
-from .serializers import UserSerializer, RegisterSerializer, ProductSerializer
 
 # Register new users
 class RegisterView(generics.CreateAPIView):
@@ -24,10 +23,6 @@ class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-
-
-from .models import Order
-from .serializers import OrderSerializer
 
 class OrderViewSet(viewsets.ModelViewSet):
     queryset = Order.objects.all()
