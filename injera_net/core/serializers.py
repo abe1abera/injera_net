@@ -46,3 +46,14 @@ class PaymentSerializer(serializers.ModelSerializer):
         model = Payment
         fields = '__all__'
         read_only_fields = ('created_at', 'amount')
+
+
+
+class DeliverySerializer(serializers.ModelSerializer):
+    order_details = OrderSerializer(source='order', read_only=True)
+    delivery_partner_name = serializers.CharField(source='delivery_partner.username', read_only=True)
+    
+    class Meta:
+        model = Delivery
+        fields = '__all__'
+        read_only_fields = ('assigned_at',)
