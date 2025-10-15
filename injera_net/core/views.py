@@ -32,3 +32,13 @@ class OrderViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Automatically set the customer to the current user
         serializer.save(customer=self.request.user)
+
+
+
+from .models import Payment
+from .serializers import PaymentSerializer
+
+class PaymentViewSet(viewsets.ModelViewSet):
+    queryset = Payment.objects.all()
+    serializer_class = PaymentSerializer
+    permission_classes = [permissions.IsAuthenticated]
