@@ -1,12 +1,8 @@
 from rest_framework import serializers
-
 from django.contrib.auth import get_user_model
+from .models import Product, Order, Payment
 
-from .models import Product, Order 
 User = get_user_model()
-
-
-from .models import Product
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -33,7 +29,6 @@ class ProductSerializer(serializers.ModelSerializer):
         model = Product
         fields = '__all__'
 
-
 class OrderSerializer(serializers.ModelSerializer):
     customer_username = serializers.CharField(source='customer.username', read_only=True)
     product_name = serializers.CharField(source='product.name', read_only=True)
@@ -42,7 +37,6 @@ class OrderSerializer(serializers.ModelSerializer):
         model = Order
         fields = '__all__'
         read_only_fields = ('created_at', 'total_price')
-
 
 class PaymentSerializer(serializers.ModelSerializer):
     order_details = OrderSerializer(source='order', read_only=True)
