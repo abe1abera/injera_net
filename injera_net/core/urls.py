@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import RegisterView, UserViewSet, ProductViewSet, OrderViewSet, PaymentViewSet, DeliveryViewSet, InventoryViewSet, NotificationViewSet
+from .views import RegisterView, UserViewSet, ProductViewSet, OrderViewSet, PaymentViewSet, DeliveryViewSet, InventoryViewSet, NotificationViewSet, ReviewViewSet
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 
@@ -16,6 +16,9 @@ router.register('deliveries', DeliveryViewSet, basename='delivery')
 router.register('inventory', InventoryViewSet, basename='inventory') 
 
 router.register('notifications', NotificationViewSet, basename='notification')
+
+
+router.register('reviews', ReviewViewSet, basename='review')
 
 urlpatterns = [
     path('auth/register/', RegisterView.as_view(), name='register'),
