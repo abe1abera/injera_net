@@ -1,8 +1,8 @@
 from rest_framework import generics, viewsets, permissions
 from django.contrib.auth import get_user_model
 
-from .models import Product, Order
-from .serializers import UserSerializer, RegisterSerializer, ProductSerializer, OrderSerializer
+from .models import Product, Order, Payment, Delivery
+from .serializers import UserSerializer, RegisterSerializer, ProductSerializer, OrderSerializer,PaymentSerializer, DeliverySerializer
 
 User = get_user_model()
 
@@ -34,11 +34,13 @@ class OrderViewSet(viewsets.ModelViewSet):
         serializer.save(customer=self.request.user)
 
 
-
-from .models import Payment
-from .serializers import PaymentSerializer
-
 class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.all()
     serializer_class = PaymentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class DeliveryViewSet(viewsets.ModelViewSet):
+    queryset = Delivery.objects.all()
+    serializer_class = DeliverySerializer
     permission_classes = [permissions.IsAuthenticated]
