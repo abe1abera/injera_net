@@ -4,24 +4,24 @@ from .models import Product, Order, Payment, Delivery, Inventory, Notification, 
 
 User = get_user_model()
 
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['id', 'username', 'email', 'is_staff']
-
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
+    password2 = serializers.CharField(write_only=True)  # ADD PASSWORD CONFIRMATION
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'password']
+        fields = ['id', 'username', 'email', 'password', 'password2']  # ADD password2
+
+    def validate(self, attrs):
+        # Check if passwords match
+        if attrs['password'] != attrs['password2']:
+            raise serializers.ValidationError({"password": "Password fields didn't match."})
+        return attrs
 
     def create(self, validated_data):
-        user = User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
-            password=validated_data['password']
-        )
+        # Remove password2 before creating user
+        validated_data.pop('password2')
+        user = User.objects.create_user(**validated_data)
         return user
 
 class ProductSerializer(serializers.ModelSerializer):
