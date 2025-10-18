@@ -83,6 +83,64 @@ class DeliveryViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
 
+    
+    @action(detail=False, methods=['get'])
+    def available_partners(self, request):
+        """Get list of available delivery partners"""
+        if request.user.role in ['admin', 'maker']:
+            available_partners = User.objects.filter(
+                role='delivery_partner',
+                is_available=True
+            )
+            serializer = UserSerializer(available_partners, many=True)
+            return Response(serializer.data)
+        return Response({'error': 'Not authorized'}, status=403)
+    
+    @action(detail=True, methods=['post'])
+    def complete_delivery(self, request, pk=None):
+        """Complete delivery and free up delivery partner"""
+        delivery = self.get_object()
+        if (request.user.role == 'delivery_partner' and 
+            delivery.delivery_partner == request.user):
+            
+            delivery.status = 'completed'
+            delivery.delivered_at = timezone.now()
+            delivery.save()
+            
+            # Free up the delivery partner
+            delivery.delivery_partner.is_available = True
+            delivery.delivery_partner.save()
+            
+            # Update order status
+            delivery.order.status = 'delivered'
+            delivery.order.save()
+            
+            return Response({'status': 'Delivery completed and partner freed'})
+        return Response({'error': 'Not authorized'}, status=403)
+    
+    @action(detail=False, methods=['post'])
+    def auto_assign(self, request):
+        """Automatically assign delivery partner to order"""
+        order_id = request.data.get('order_id')
+        if request.user.role in ['admin', 'maker']:
+            try:
+                order = Order.objects.get(id=order_id)
+                delivery = Delivery.assign_optimal_delivery_partner(order)
+                if delivery:
+                    return Response({
+                        'status': 'Delivery partner automatically assigned',
+                        'delivery_id': delivery.id,
+                        'partner': delivery.delivery_partner.username
+                    })
+                else:
+                    return Response({'error': 'No available delivery partners'}, status=400)
+            except Order.DoesNotExist:
+                return Response({'error': 'Order not found'}, status=404)
+        return Response({'error': 'Not authorized'}, status=403)
+
+
+
+
 class InventoryViewSet(viewsets.ModelViewSet):
     queryset = Inventory.objects.all()
     serializer_class = InventorySerializer
@@ -165,7 +223,57 @@ class DeliveryViewSet(viewsets.ModelViewSet):
             return Response({'status': 'Delivery completed'})
         return Response({'error': 'Not authorized'}, status=403)
     
-
+    @action(detail=False, methods=['get'])
+    def available_partners(self, request):
+        """Get list of available delivery partners"""
+        if request.user.role in ['admin', 'maker']:
+            available_partners = User.objects.filter(
+                role='delivery_partner',
+                is_available=True
+            )
+            serializer = UserSerializer(available_partners, many=True)
+            return Response(serializer.data)
+        return Response({'error': 'Not authorized'}, status=403)
+    
+    @action(detail=True, methods=['post'])
+    def complete_delivery(self, request, pk=None):
+        """Complete delivery and free up delivery partner"""
+        delivery = self.get_object()
+        if (request.user.role == 'delivery_partner' and 
+            delivery.delivery_partner == request.user):
+            
+            delivery.status = 'completed'
+            delivery.delivered_at = timezone.now()
+            delivery.save()
+            
+            delivery.delivery_partner.is_available = True
+            delivery.delivery_partner.save()
+            
+            delivery.order.status = 'delivered'
+            delivery.order.save()
+            
+            return Response({'status': 'Delivery completed and partner freed'})
+        return Response({'error': 'Not authorized'}, status=403)
+    
+    @action(detail=False, methods=['post'])
+    def auto_assign(self, request):
+        """Automatically assign delivery partner to order"""
+        order_id = request.data.get('order_id')
+        if request.user.role in ['admin', 'maker']:
+            try:
+                order = Order.objects.get(id=order_id)
+                delivery = Delivery.assign_optimal_delivery_partner(order)
+                if delivery:
+                    return Response({
+                        'status': 'Delivery partner automatically assigned',
+                        'delivery_id': delivery.id,
+                        'partner': delivery.delivery_partner.username
+                    })
+                else:
+                    return Response({'error': 'No available delivery partners'}, status=400)
+            except Order.DoesNotExist:
+                return Response({'error': 'Order not found'}, status=404)
+        return Response({'error': 'Not authorized'}, status=403)
 
 from django.db.models import Count, Sum, Avg
 from django.utils import timezone

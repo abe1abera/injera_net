@@ -16,6 +16,19 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.username} ({self.role})"
+    
+    is_available = models.BooleanField(default=True)
+    current_location = models.CharField(max_length=100, blank=True)  # Simulated location
+    
+    def get_available_delivery_partners(self):
+        """Get available delivery partners for assignment"""
+        return User.objects.filter(
+            role='delivery_partner',
+            is_available=True
+        )
+    is_available = models.BooleanField(default=True)
+    current_location = models.CharField(max_length=100, blank=True)
+
 
 
 # PRODUCT MODEL
@@ -232,6 +245,42 @@ class Delivery(models.Model):
                 user=self.order.customer,
                 message=f"Your order #{self.order.id} has been delivered!"
             )
+
+    
+    @classmethod
+    def assign_optimal_delivery_partner(cls, order):
+        """Automatically assign the best available delivery partner"""
+        available_partners = User.objects.filter(
+            role='delivery_partner',
+            is_available=True
+        )
+        
+        if available_partners.exists():
+            # Simple round-robin assignment (basic optimization)
+            partner = available_partners.first()
+            delivery = cls.objects.create(
+                order=order,
+                delivery_partner=partner,
+                status='assigned'
+            )
+            
+            # Mark partner as busy
+            partner.is_available = False
+            partner.save()
+            
+            # Create notifications
+            Notification.objects.create(
+                user=partner,
+                message=f"New delivery assigned: Order #{order.id}"
+            )
+            Notification.objects.create(
+                user=order.customer,
+                message=f"Delivery partner assigned to your order #{order.id}"
+            )
+            
+            return delivery
+        return None
+
 
 
 # INVENTORY MODEL
