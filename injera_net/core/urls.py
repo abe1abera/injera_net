@@ -30,3 +30,13 @@ urlpatterns = [
 ]
 
 
+urlpatterns = [
+    path('auth/register/', RegisterView.as_view(), name='register'),
+    path('auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('analytics/dashboard_stats/', AnalyticsViewSet.as_view({'get': 'dashboard_stats'}), name='analytics-dashboard'),
+    path('analytics/maker_analytics/', AnalyticsViewSet.as_view({'get': 'maker_analytics'}), name='analytics-maker'),
+    path('analytics/customer_analytics/', AnalyticsViewSet.as_view({'get': 'customer_analytics'}), name='analytics-customer'),
+    path('analytics/delivery_analytics/', AnalyticsViewSet.as_view({'get': 'delivery_analytics'}), name='analytics-delivery'),
+    path('', include(router.urls)),
+]
