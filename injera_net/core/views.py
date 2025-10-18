@@ -164,3 +164,109 @@ class DeliveryViewSet(viewsets.ModelViewSet):
             delivery.mark_completed()
             return Response({'status': 'Delivery completed'})
         return Response({'error': 'Not authorized'}, status=403)
+    
+
+
+from django.db.models import Count, Sum, Avg
+from django.utils import timezone
+from datetime import timedelta
+
+class AnalyticsViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @action(detail=False, methods=['get'])
+    def dashboard_stats(self, request):
+        """Get overall platform statistics (Admin only)"""
+        if request.user.role != 'admin':
+            return Response({'error': 'Admin access required'}, status=403)
+        
+        # Basic platform stats
+        total_users = User.objects.count()
+        total_orders = Order.objects.count()
+        total_revenue = Payment.objects.filter(status='paid').aggregate(Sum('amount'))['amount__sum'] or 0
+        pending_orders = Order.objects.filter(status='pending').count()
+        
+        return Response({
+            'total_users': total_users,
+            'total_orders': total_orders,
+            'total_revenue': float(total_revenue),
+            'pending_orders': pending_orders
+        })
+
+    @action(detail=False, methods=['get'])
+    def maker_analytics(self, request):
+        """Get analytics for makers"""
+        if request.user.role != 'maker':
+            return Response({'error': 'Maker access required'}, status=403)
+        
+        # Maker-specific stats
+        total_sales = Order.objects.filter(maker=request.user, status='delivered').count()
+        total_earnings = Order.objects.filter(
+            maker=request.user, 
+            status='delivered'
+        ).aggregate(Sum('total_price'))['total_price__sum'] or 0
+        
+        # Top products
+        top_products = Order.objects.filter(
+            maker=request.user
+        ).values(
+            'product__name'
+        ).annotate(
+            total_sold=Count('id'),
+            total_revenue=Sum('total_price')
+        ).order_by('-total_sold')[:5]
+        
+        return Response({
+            'total_sales': total_sales,
+            'total_earnings': float(total_earnings),
+            'top_products': list(top_products)
+        })
+
+    @action(detail=False, methods=['get'])
+    def customer_analytics(self, request):
+        """Get analytics for customers"""
+        if request.user.role != 'customer':
+            return Response({'error': 'Customer access required'}, status=403)
+        
+        total_orders = Order.objects.filter(customer=request.user).count()
+        total_spent = Order.objects.filter(
+            customer=request.user, 
+            status='delivered'
+        ).aggregate(Sum('total_price'))['total_price__sum'] or 0
+        
+        recent_orders = Order.objects.filter(
+            customer=request.user
+        ).order_by('-created_at')[:5]
+        
+        recent_orders_data = OrderSerializer(recent_orders, many=True).data
+        
+        return Response({
+            'total_orders': total_orders,
+            'total_spent': float(total_spent),
+            'recent_orders': recent_orders_data
+        })
+
+    @action(detail=False, methods=['get'])
+    def delivery_analytics(self, request):
+        """Get analytics for delivery partners"""
+        if request.user.role != 'delivery_partner':
+            return Response({'error': 'Delivery partner access required'}, status=403)
+        
+        total_deliveries = Delivery.objects.filter(delivery_partner=request.user).count()
+        completed_deliveries = Delivery.objects.filter(
+            delivery_partner=request.user, 
+            status='completed'
+        ).count()
+        
+        today = timezone.now().date()
+        weekly_deliveries = Delivery.objects.filter(
+            delivery_partner=request.user,
+            assigned_at__date__gte=today - timedelta(days=7)
+        ).count()
+        
+        return Response({
+            'total_deliveries': total_deliveries,
+            'completed_deliveries': completed_deliveries,
+            'weekly_deliveries': weekly_deliveries,
+            'completion_rate': round((completed_deliveries / total_deliveries * 100) if total_deliveries > 0 else 0, 2)
+        })
