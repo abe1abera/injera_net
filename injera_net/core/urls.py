@@ -17,6 +17,7 @@ router.register('analytics', AnalyticsViewSet, basename='analytics')
 urlpatterns = [
     path('auth/register/', RegisterView.as_view(), name='register'),
     path('auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('analytics/<str:analytics_type>/', AnalyticsView.as_view(), name='analytics'),
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('', include(router.urls)),
 ]

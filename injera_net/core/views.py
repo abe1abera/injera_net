@@ -378,3 +378,113 @@ class AnalyticsViewSet(viewsets.ViewSet):
             'weekly_deliveries': weekly_deliveries,
             'completion_rate': round((completed_deliveries / total_deliveries * 100) if total_deliveries > 0 else 0, 2)
         })
+    
+
+
+from rest_framework.views import APIView
+
+class AnalyticsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, analytics_type=None):
+        """Handle all analytics endpoints"""
+        if analytics_type == 'dashboard_stats':
+            return self.dashboard_stats(request)
+        elif analytics_type == 'maker_analytics':
+            return self.maker_analytics(request)
+        elif analytics_type == 'customer_analytics':
+            return self.customer_analytics(request)
+        elif analytics_type == 'delivery_analytics':
+            return self.delivery_analytics(request)
+        else:
+            return Response({'error': 'Invalid analytics type'}, status=400)
+
+    def dashboard_stats(self, request):
+        """Get overall platform statistics (Admin only)"""
+        if request.user.role != 'admin':
+            return Response({'error': 'Admin access required'}, status=403)
+        
+        total_users = User.objects.count()
+        total_orders = Order.objects.count()
+        total_revenue = Payment.objects.filter(status='paid').aggregate(Sum('amount'))['amount__sum'] or 0
+        pending_orders = Order.objects.filter(status='pending').count()
+        
+        return Response({
+            'total_users': total_users,
+            'total_orders': total_orders,
+            'total_revenue': float(total_revenue),
+            'pending_orders': pending_orders
+        })
+
+    def maker_analytics(self, request):
+        """Get analytics for makers"""
+        if request.user.role != 'maker':
+            return Response({'error': 'Maker access required'}, status=403)
+        
+        total_sales = Order.objects.filter(maker=request.user, status='delivered').count()
+        total_earnings = Order.objects.filter(
+            maker=request.user, 
+            status='delivered'
+        ).aggregate(Sum('total_price'))['total_price__sum'] or 0
+        
+        top_products = Order.objects.filter(
+            maker=request.user
+        ).values(
+            'product__name'
+        ).annotate(
+            total_sold=Count('id'),
+            total_revenue=Sum('total_price')
+        ).order_by('-total_sold')[:5]
+        
+        return Response({
+            'total_sales': total_sales,
+            'total_earnings': float(total_earnings),
+            'top_products': list(top_products)
+        })
+
+    def customer_analytics(self, request):
+        """Get analytics for customers"""
+        if request.user.role != 'customer':
+            return Response({'error': 'Customer access required'}, status=403)
+        
+        total_orders = Order.objects.filter(customer=request.user).count()
+        total_spent = Order.objects.filter(
+            customer=request.user, 
+            status='delivered'
+        ).aggregate(Sum('total_price'))['total_price__sum'] or 0
+        
+        recent_orders = Order.objects.filter(
+            customer=request.user
+        ).order_by('-created_at')[:5]
+        
+        recent_orders_data = OrderSerializer(recent_orders, many=True).data
+        
+        return Response({
+            'total_orders': total_orders,
+            'total_spent': float(total_spent),
+            'recent_orders': recent_orders_data
+        })
+
+    def delivery_analytics(self, request):
+        """Get analytics for delivery partners"""
+        if request.user.role != 'delivery_partner':
+            return Response({'error': 'Delivery partner access required'}, status=403)
+        
+        total_deliveries = Delivery.objects.filter(delivery_partner=request.user).count()
+        completed_deliveries = Delivery.objects.filter(
+            delivery_partner=request.user, 
+            status='completed'
+        ).count()
+        
+        today = timezone.now().date()
+        weekly_deliveries = Delivery.objects.filter(
+            delivery_partner=request.user,
+            assigned_at__date__gte=today - timedelta(days=7)
+        ).count()
+        
+        return Response({
+            'total_deliveries': total_deliveries,
+            'completed_deliveries': completed_deliveries,
+            'weekly_deliveries': weekly_deliveries,
+            'completion_rate': round((completed_deliveries / total_deliveries * 100) if total_deliveries > 0 else 0, 2)
+        })
