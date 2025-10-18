@@ -38,6 +38,60 @@ class OrderViewSet(viewsets.ModelViewSet):
         order = serializer.save(customer=self.request.user)
         # Auto-create payment record
         order.create_payment_record()
+        
+    # ADD THESE CUSTOM ACTIONS:
+    @action(detail=True, methods=['post'])
+    def accept(self, request, pk=None):
+        """Accept an order (maker only)"""
+        order = self.get_object()
+        if request.user.role == 'maker' and order.maker == request.user:
+            order.accept_order()
+            return Response({'status': 'Order accepted'})
+        return Response({'error': 'Not authorized'}, status=403)
+
+    @action(detail=True, methods=['post'])
+    def mark_paid(self, request, pk=None):
+        """Mark order as paid"""
+        order = self.get_object()
+        if request.user == order.customer:
+            order.mark_paid()
+            return Response({'status': 'Order marked as paid'})
+        return Response({'error': 'Not authorized'}, status=403)
+
+    @action(detail=True, methods=['post'])
+    def assign_delivery(self, request, pk=None):
+        """Assign delivery partner to order"""
+        order = self.get_object()
+        delivery_partner_id = request.data.get('delivery_partner_id')
+        
+        if request.user.role in ['maker', 'admin']:
+            try:
+                delivery_partner = User.objects.get(id=delivery_partner_id, role='delivery_partner')
+                order.assign_for_delivery(delivery_partner)
+                return Response({'status': 'Delivery partner assigned'})
+            except User.DoesNotExist:
+                return Response({'error': 'Invalid delivery partner'}, status=400)
+        return Response({'error': 'Not authorized'}, status=403)
+
+    @action(detail=True, methods=['post'])
+    def mark_delivered(self, request, pk=None):
+        """Mark order as delivered (delivery partner only)"""
+        order = self.get_object()
+        if (request.user.role == 'delivery_partner' and 
+            hasattr(order, 'delivery') and 
+            order.delivery.delivery_partner == request.user):
+            order.mark_delivered()
+            return Response({'status': 'Order delivered'})
+        return Response({'error': 'Not authorized'}, status=403)
+
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        """Cancel order"""
+        order = self.get_object()
+        if request.user in [order.customer, order.maker]:
+            order.cancel_order()
+            return Response({'status': 'Order cancelled'})
+        return Response({'error': 'Not authorized'}, status=403)
 
 class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.all()
