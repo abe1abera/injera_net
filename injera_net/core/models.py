@@ -107,6 +107,51 @@ class Delivery(models.Model):
 
     def __str__(self):
         return f"Delivery #{self.id} - {self.status}"
+    
+    
+    def assign_delivery_partner(self, delivery_partner):
+        """Assign a delivery partner to this delivery"""
+        if delivery_partner.role == 'delivery_partner':
+            self.delivery_partner = delivery_partner
+            self.status = 'assigned'
+            self.save()
+            
+            # Update associated order status
+            self.order.status = 'in_delivery'
+            self.order.save()
+            
+            # Create notification
+            Notification.objects.create(
+                user=delivery_partner,
+                message=f"You have been assigned to deliver Order #{self.order.id}"
+            )
+    
+    def mark_in_transit(self):
+        """Mark delivery as in transit"""
+        if self.status == 'assigned':
+            self.status = 'in_transit'
+            self.save()
+            
+            Notification.objects.create(
+                user=self.order.customer,
+                message=f"Your order #{self.order.id} is out for delivery!"
+            )
+    
+    def mark_completed(self):
+        """Mark delivery as completed"""
+        if self.status == 'in_transit':
+            self.status = 'completed'
+            self.delivered_at = timezone.now()
+            self.save()
+            
+            # Update order status
+            self.order.status = 'delivered'
+            self.order.save()
+            
+            Notification.objects.create(
+                user=self.order.customer,
+                message=f"Your order #{self.order.id} has been delivered!"
+            )
 
 
 # INVENTORY MODEL
