@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import RegisterView, UserViewSet, ProductViewSet, OrderViewSet, PaymentViewSet, DeliveryViewSet, InventoryViewSet, NotificationViewSet, ReviewViewSet, AnalyticsViewSet 
+from .views import RegisterView, UserViewSet, ProductViewSet, OrderViewSet, PaymentViewSet, DeliveryViewSet, InventoryViewSet, NotificationViewSet, ReviewViewSet, AnalyticsViewSet
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 router = DefaultRouter()
@@ -17,7 +17,6 @@ router.register('analytics', AnalyticsViewSet, basename='analytics')
 urlpatterns = [
     path('auth/register/', RegisterView.as_view(), name='register'),
     path('auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('analytics/<str:analytics_type>/', AnalyticsView.as_view(), name='analytics'),
     path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('', include(router.urls)),
 ]
