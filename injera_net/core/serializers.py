@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Product, Order, Payment, Delivery, Inventory, Notification
+from .models import Product, Order, Payment, Delivery, Inventory, Notification, Review
 
 User = get_user_model()
 
@@ -74,3 +74,12 @@ class NotificationSerializer(serializers.ModelSerializer):
         model = Notification
         fields = '__all__'
         read_only_fields = ('created_at',)
+
+class ReviewSerializer(serializers.ModelSerializer):
+    customer_username = serializers.CharField(source='customer.username', read_only=True)
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    
+    class Meta:
+        model = Review
+        fields = '__all__'
+        read_only_fields = ('created_at',)       

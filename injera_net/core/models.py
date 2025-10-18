@@ -64,6 +64,36 @@ class Order(models.Model):
 
     def __str__(self):
         return f"Order #{self.id} - {self.customer.username}"
+    
+    
+    def create_payment_record(self):
+        """Automatically create payment record when order is created"""
+        payment, created = Payment.objects.get_or_create(
+            order=self,
+            defaults={
+                'amount': self.total_price,
+                'status': 'pending'
+            }
+        )
+        return payment
+
+
+    
+    def accept_order(self):
+        """Mark order as accepted by maker"""
+        if self.status == 'pending':
+            self.status = 'accepted'
+            self.save()
+            # Trigger notification
+            Notification.notify_order_accepted(self)
+    
+    def mark_delivered(self):
+        """Mark order as delivered"""
+        if self.status == 'in_delivery':
+            self.status = 'delivered'
+            self.save()
+            # Trigger notification
+            Notification.notify_order_delivered(self)
 
 
 
@@ -84,6 +114,56 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"Payment for Order #{self.order.id} - {self.status}"
+    
+    
+    def process_payment(self):
+        """Process payment and update order status"""
+        if self.status == 'pending':
+            # Simulate payment processing
+            self.status = 'paid'
+            self.paid_at = timezone.now()
+            self.save()
+            
+            # Update order status
+            self.order.status = 'paid'
+            self.order.save()
+            
+            # Create notification
+            Notification.objects.create(
+                user=self.order.customer,
+                message=f"Payment for Order #{self.order.id} was successful!"
+            )
+            return True
+        return False
+    
+    def mark_failed(self):
+        """Mark payment as failed"""
+        if self.status == 'pending':
+            self.status = 'failed'
+            self.save()
+            
+            Notification.objects.create(
+                user=self.order.customer,
+                message=f"Payment for Order #{self.order.id} failed. Please try again."
+            )
+    
+    def process_refund(self):
+        """Process refund for order"""
+        if self.status == 'paid':
+            self.status = 'refunded'
+            self.save()
+            
+            # Update order status
+            self.order.status = 'cancelled'
+            self.order.save()
+            
+            Notification.objects.create(
+                user=self.order.customer,
+                message=f"Refund processed for Order #{self.order.id}"
+            )
+
+
+
 
 
 # DELIVERY MODEL
@@ -171,6 +251,15 @@ class Inventory(models.Model):
         return f"{self.item_name} ({self.quantity})"
 
 
+    def save(self, *args, **kwargs):
+        """Override save to check for low stock"""
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        
+        # Check for low stock after saving
+        if self.is_low_stock and not is_new:
+            Notification.notify_low_stock(self)
+
 
 # NOTIFICATION MODEL
 
@@ -186,6 +275,49 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notification for {self.user.username}"
+
+    
+    @classmethod
+    def notify_order_created(cls, order):
+        """Notify maker when new order is created"""
+        cls.objects.create(
+            user=order.maker,
+            title="New Order Received",
+            message=f"You have a new order #{order.id} from {order.customer.username}"
+        )
+    
+    @classmethod
+    def notify_order_accepted(cls, order):
+        """Notify customer when order is accepted"""
+        cls.objects.create(
+            user=order.customer,
+            title="Order Accepted",
+            message=f"Your order #{order.id} has been accepted and is being prepared!"
+        )
+    
+    @classmethod
+    def notify_order_delivered(cls, order):
+        """Notify customer when order is delivered"""
+        cls.objects.create(
+            user=order.customer,
+            title="Order Delivered",
+            message=f"Your order #{order.id} has been delivered. Enjoy your meal!"
+        )
+    
+    @classmethod
+    def notify_low_stock(cls, inventory):
+        """Notify maker when inventory is low"""
+        cls.objects.create(
+            user=inventory.owner,
+            title="Low Stock Alert",
+            message=f"Your {inventory.item_name} is running low! Current stock: {inventory.quantity}"
+        )
+    
+    def mark_as_read(self):
+        """Mark notification as read"""
+        self.is_read = True
+        self.save()
+
 
 
 # REVIEW MODEL
