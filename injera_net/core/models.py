@@ -108,6 +108,14 @@ class Order(models.Model):
             # Trigger notification
             Notification.notify_order_delivered(self)
 
+class Order(models.Model):
+    # ... your existing fields ...
+    
+    def save(self, *args, **kwargs):
+        """Override save to calculate total price automatically"""
+        if self.product and self.quantity:
+            self.total_price = self.product.price * self.quantity
+        super().save(*args, **kwargs)
 
 
 # PAYMENT MODEL
