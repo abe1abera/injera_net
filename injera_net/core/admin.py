@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User, Product, Order, Payment, Delivery, Inventory, Notification, Review
+from .models import User, Product, Payment, Delivery, Inventory, Notification, Review
 
 
 @admin.register(User)
@@ -16,11 +16,6 @@ class ProductAdmin(admin.ModelAdmin):
     search_fields = ('name', 'maker__username')
 
 
-@admin.register(Order)
-class OrderAdmin(admin.ModelAdmin):
-    list_display = ('id', 'customer', 'product', 'quantity', 'total_price', 'status', 'created_at')
-    list_filter = ('status', 'created_at')
-    search_fields = ('customer__username', 'product__name')
 
 
 @admin.register(Payment)

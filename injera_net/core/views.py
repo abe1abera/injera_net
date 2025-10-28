@@ -44,7 +44,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     def accept(self, request, pk=None):
         """Accept an order (maker only)"""
         order = self.get_object()
-        if request.user.role == 'maker' and order.maker == request.user:
+        if request.user.role == 'maker' and order.product.maker == request.user:
             order.accept_order()
             return Response({'status': 'Order accepted'})
         return Response({'error': 'Not authorized'}, status=403)
@@ -248,10 +248,10 @@ class AnalyticsViewSet(viewsets.ViewSet):
     @action(detail=False, methods=['get'])
     def maker_analytics(self, request):
         if request.user.role != 'maker':
-            return Response({'error': 'Maker access required'}, status=403)
-        total_sales = Order.objects.filter(maker=request.user, status='delivered').count()
-        total_earnings = Order.objects.filter(maker=request.user, status='delivered').aggregate(Sum('total_price'))['total_price__sum'] or 0
-        top_products = Order.objects.filter(maker=request.user).values('product__name').annotate(total_sold=Count('id'), total_revenue=Sum('total_price')).order_by('-total_sold')[:5]
+           return Response({'error': 'Maker access required'}, status=403)
+        total_sales = Order.objects.filter(product__maker=request.user, status='delivered').count()
+        total_earnings = Order.objects.filter(product__maker=request.user, status='delivered').aggregate(Sum('total_price'))['total_price__sum'] or 0
+        top_products = Order.objects.filter(product__maker=request.user).values('product__name').annotate(total_sold=Count('id'), total_revenue=Sum('total_price')).order_by('-total_sold')[:5]
         return Response({
             'total_sales': total_sales,
             'total_earnings': float(total_earnings),

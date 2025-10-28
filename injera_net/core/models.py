@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings
+from django.utils import timezone
 
 # USER MODEL
 
@@ -26,9 +27,6 @@ class User(AbstractUser):
             role='delivery_partner',
             is_available=True
         )
-    is_available = models.BooleanField(default=True)
-    current_location = models.CharField(max_length=100, blank=True)
-
 
 
 # PRODUCT MODEL
@@ -49,7 +47,6 @@ class Product(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.maker.username}"
-
 
 
 # ORDER MODEL
@@ -90,8 +87,6 @@ class Order(models.Model):
         )
         return payment
 
-
-    
     def accept_order(self):
         """Mark order as accepted by maker"""
         if self.status == 'pending':
@@ -108,14 +103,42 @@ class Order(models.Model):
             # Trigger notification
             Notification.notify_order_delivered(self)
 
-class Order(models.Model):
-    # ... your existing fields ...
-    
     def save(self, *args, **kwargs):
         """Override save to calculate total price automatically"""
         if self.product and self.quantity:
             self.total_price = self.product.price * self.quantity
         super().save(*args, **kwargs)
+
+    # ADDED MISSING METHODS WITH PROPER INDENTATION:
+    def mark_paid(self):
+        """Mark order as paid"""
+        if self.status == 'accepted':
+            self.status = 'paid'
+            self.save()
+            # Auto-assign delivery
+            Delivery.assign_optimal_delivery_partner(self)
+
+    def assign_for_delivery(self, delivery_partner):
+        """Assign delivery partner to order"""
+        delivery, created = Delivery.objects.get_or_create(
+            order=self,
+            defaults={'delivery_partner': delivery_partner}
+        )
+        if not created:
+            delivery.delivery_partner = delivery_partner
+            delivery.save()
+        
+        self.status = 'in_delivery'
+        self.save()
+
+    def cancel_order(self):
+        """Cancel order"""
+        if self.status in ['pending', 'accepted']:
+            self.status = 'cancelled'
+            self.save()
+            # Refund payment if exists
+            if hasattr(self, 'payment'):
+                self.payment.mark_failed()
 
 
 # PAYMENT MODEL
@@ -182,9 +205,6 @@ class Payment(models.Model):
                 user=self.order.customer,
                 message=f"Refund processed for Order #{self.order.id}"
             )
-
-
-
 
 
 # DELIVERY MODEL
@@ -254,7 +274,6 @@ class Delivery(models.Model):
                 message=f"Your order #{self.order.id} has been delivered!"
             )
 
-    
     @classmethod
     def assign_optimal_delivery_partner(cls, order):
         """Automatically assign the best available delivery partner"""
@@ -290,7 +309,6 @@ class Delivery(models.Model):
         return None
 
 
-
 # INVENTORY MODEL
 
 class Inventory(models.Model):
@@ -307,6 +325,10 @@ class Inventory(models.Model):
     def __str__(self):
         return f"{self.item_name} ({self.quantity})"
 
+    @property
+    def is_low_stock(self):
+        """Check if inventory is below low stock threshold"""
+        return self.quantity <= self.low_stock_threshold
 
     def save(self, *args, **kwargs):
         """Override save to check for low stock"""
@@ -333,13 +355,11 @@ class Notification(models.Model):
     def __str__(self):
         return f"Notification for {self.user.username}"
 
-    
     @classmethod
     def notify_order_created(cls, order):
         """Notify maker when new order is created"""
         cls.objects.create(
-            user=order.maker,
-            title="New Order Received",
+            user=order.product.maker,  # Fixed: order.maker -> order.product.maker
             message=f"You have a new order #{order.id} from {order.customer.username}"
         )
     
@@ -348,7 +368,6 @@ class Notification(models.Model):
         """Notify customer when order is accepted"""
         cls.objects.create(
             user=order.customer,
-            title="Order Accepted",
             message=f"Your order #{order.id} has been accepted and is being prepared!"
         )
     
@@ -357,7 +376,6 @@ class Notification(models.Model):
         """Notify customer when order is delivered"""
         cls.objects.create(
             user=order.customer,
-            title="Order Delivered",
             message=f"Your order #{order.id} has been delivered. Enjoy your meal!"
         )
     
@@ -366,15 +384,13 @@ class Notification(models.Model):
         """Notify maker when inventory is low"""
         cls.objects.create(
             user=inventory.owner,
-            title="Low Stock Alert",
             message=f"Your {inventory.item_name} is running low! Current stock: {inventory.quantity}"
         )
-    
+
     def mark_as_read(self):
         """Mark notification as read"""
         self.is_read = True
         self.save()
-
 
 
 # REVIEW MODEL
